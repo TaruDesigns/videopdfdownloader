@@ -16,24 +16,29 @@ def download_youtube_video(url, output_path="video.mp4"):
     print(f"Downloaded video to {output_path}")
 
 
-def split_video_into_key_frames(video_path, frames_folder="key_frames"):
+def split_video_into_key_frames(
+    video_path, frames_folder="key_frames", start_time=None, threshold=0.0128
+):
     if not os.path.exists(frames_folder):
         os.makedirs(frames_folder)
 
     # Use ffmpeg-python to extract only key frames
     ffmpeg = FFmpeg()
-    ffmpeg.input(video_path).output(
+    if start_time:
+        ffmpeg.input(video_path, ss=start_time)
+    else:
+        ffmpeg.input(video_path)
+    ffmpeg.output(
         os.path.join(frames_folder, "key_frame_%05d.png"),
-        vf="select=eq(pict_type\\,I)",
+        vf=f"select=gt(scene\,{threshold})",
+        # vf="select=eq(pict_type\\,I)", This one is good for filtering most of the good frames but it has repeats
         vsync="vfr",
     )
     ffmpeg.execute()
     print(f"Extracted key frames to {frames_folder}")
-
-
-def show_difference(image1, image2):
-    diff = ImageChops.difference(image1, image2)
-    diff.show()
+    ffmpeg.output(os.path.join(frames_folder, "key_frame_00000.png"), vframes=1)
+    ffmpeg.execute()
+    print(f"Extracted first frame to {frames_folder}")
 
 
 def remove_duplicate_images(folder_path, threshold_percentage=0.05):
@@ -87,4 +92,3 @@ frames_folder = "extracted_frames"
 
 download_youtube_video(url, video_path)
 split_video_into_key_frames(video_path, frames_folder)
-remove_duplicate_images(frames_folder)
