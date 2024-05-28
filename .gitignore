@@ -163,3 +163,5 @@ cython_debug/
 
 extracted_frames/
 *.mp4
+
+output/

@@ -30,15 +30,12 @@ def split_video_into_key_frames(
         ffmpeg.input(video_path)
     ffmpeg.output(
         os.path.join(frames_folder, "key_frame_%05d.png"),
-        vf=f"select=gt(scene\,{threshold})",
+        vf=f"select=gt(scene\,{threshold})+eq(n\,0)",  # The second filter is just first frame because it wouldn't get it otherwise
         # vf="select=eq(pict_type\\,I)", This one is good for filtering most of the good frames but it has repeats
         vsync="vfr",
     )
     ffmpeg.execute()
     print(f"Extracted key frames to {frames_folder}")
-    ffmpeg.output(os.path.join(frames_folder, "key_frame_00000.png"), vframes=1)
-    ffmpeg.execute()
-    print(f"Extracted first frame to {frames_folder}")
 
 
 def remove_duplicate_images(folder_path, threshold_percentage=0.05):
@@ -82,7 +79,7 @@ def remove_duplicate_images(folder_path, threshold_percentage=0.05):
             previous_image_filepath = file_path
 
 
-url = "https://www.youtube.com/watch?v=0oxgqLo0jY0"
+url = "https://www.youtube.com/watch?v=SEwqRF-_hsk"
 try:
     video_id = url.split("watch?v=")[1]
 except Exception as e:
