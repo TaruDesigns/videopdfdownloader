@@ -165,3 +165,4 @@ extracted_frames/
 *.mp4
 
 output/
+temp/

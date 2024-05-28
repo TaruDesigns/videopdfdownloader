@@ -8,18 +8,14 @@ from PIL import Image
 from yt_dlp import YoutubeDL
 
 
-def folder_cleanup(video_id: str):
+def folder_cleanup(video_id: str) -> None:
     try:
-        shutil.rmtre(os.path.join("./temp", video_id))
+        shutil.rmtree(os.path.join("temp", video_id))
     except Exception as e:
         logging.warn(e)
-    # os.makedirs(os.path.join("./temp", video_id, "downloads")
-    # os.makedirs(os.path.join("./temp", video_id, "frames", "raw")
-    # os.makedirs(os.path.join("./temp", video_id, "frames", "processed")
-    # os.makedirs(os.path.join("./temp", video_id, "pdf")
 
 
-def download_youtube_video(url: str = None, output_path="video.mp4") -> dict:
+def download_youtube_video(url: str = None, output_path="video.mp4") -> None:
     """Downloads video to disk using yt-dlp
 
     Args:
@@ -29,7 +25,7 @@ def download_youtube_video(url: str = None, output_path="video.mp4") -> dict:
     if url is None:
         raise ValueError("URL Cannot be empty")
     # Download best quality
-    os.makedirs(os.path.dirname(output_path))
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     ydl_opts = {
         "format": "bestvideo",
         "outtmpl": output_path,
@@ -49,7 +45,9 @@ def extract_youtube_info_from_url(url: str = None) -> dict:
         raise ValueError("URL Cannot be empty")
     # Download best quality
     ydl_opts = {
-        "format": "bestvideo",
+        "quiet": True,  # Suppress the output
+        "skip_download": True,  # Do not download the video
+        "extract_flat": True,  # Extract metadata without downloading
     }
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url)
@@ -62,7 +60,7 @@ def split_video_into_key_frames(
     frames_folder: str = "raw",
     start_time: str = None,
     threshold: float = 0.0128,
-):
+) -> list[str]:
     """Splits video into keyframes (==keep only unique frames, mostly) using ffmpeg
 
     Args:
@@ -72,7 +70,7 @@ def split_video_into_key_frames(
         threshold (float, optional): magic value for ffmpeg to decide how similar a frame is to the next
     """
     if not os.path.exists(frames_folder):
-        os.makedirs(frames_folder)
+        os.makedirs(frames_folder, exist_ok=True)
 
     # Use ffmpeg-python to extract only key frames
     ffmpeg = FFmpeg()
@@ -143,14 +141,20 @@ def remove_duplicate_images(folder_path, threshold_percentage=0.05):
 """
 
 
-def postprocess_images_sheetmusic(frames_list: list[str]):
-    postprocessed_images = sorted([postprocess_image(f) for f in frames_list])
+def postprocess_images_sheetmusic(
+    frames_list: list[str], output_folder: str = None
+) -> list[str]:
+    # TODO check there's results before just going all the way
+    os.makedirs(output_folder, exist_ok=True)
+    postprocessed_images = sorted(
+        [postprocess_image(f, output_folder) for f in frames_list]
+    )
     return postprocessed_images
 
     ...
 
 
-def postprocess_image(image_path: str = None) -> str:
+def postprocess_image(image_path: str = None, destination_folder: str = None) -> str:
     """Crops image to remove any black background and leave only the white part (for sheet music)
 
     Args:
@@ -162,8 +166,6 @@ def postprocess_image(image_path: str = None) -> str:
     # Load image
     if image_path is None:
         raise ValueError("Image path cannot be null")
-    output_folder = os.path.join(os.path.dirname(image_path), "processed")
-    os.makedirs(output_folder, exist_ok=True)
     img = Image.open(image_path)
 
     # Convert to grayscale
@@ -181,20 +183,21 @@ def postprocess_image(image_path: str = None) -> str:
     # Crop image to bounding box
     cropped_img = img.crop((min_x, min_y, max_x + 1, max_y + 1))
     # Save cropped image to disk
-    out_imgname = image_path.replace("key_frame", "cropped_frame")
-    out_path = os.path.join(output_folder, out_imgname)
+    out_imgname = os.path.basename(image_path).replace("key_frame", "cropped_frame")
+    out_path = os.path.join(destination_folder, out_imgname)
     cropped_img.save(out_path)
     return out_path
 
 
-def images_to_pdf(imglist: str = None, output_file: str = "out.pdf"):
+def images_to_pdf(imglist: str = None, output_file: str = "out.pdf") -> str:
     images = [Image.open(f) for f in imglist]
 
-    os.makedirs(os.path.join(os.path.dirname(output_file), exist_ok=True))
+    os.makedirs(os.path.join(os.path.dirname(output_file)), exist_ok=True)
 
     images[0].save(
         output_file, "PDF", resolution=100.0, save_all=True, append_images=images[1:]
     )
+    return output_file
 
 
 if __name__ == "__main__":
@@ -202,3 +205,15 @@ if __name__ == "__main__":
     url = "https://www.youtube.com/watch?v=SEwqRF-_hsk"
     ytinfo = extract_youtube_info_from_url(url=url)
     folder_cleanup(video_id=ytinfo["id"])
+    downloadpath = os.path.join("temp", ytinfo["id"], "video.mp4")
+    download_youtube_video(url=url, output_path=downloadpath)
+    rawframes_folder = os.path.join("temp", ytinfo["id"], "rawframes")
+    keyframes = split_video_into_key_frames(
+        video_path=downloadpath, frames_folder=rawframes_folder
+    )
+    processedframes_folder = os.path.join("temp", ytinfo["id"], "processedframes")
+    processedframes = postprocess_images_sheetmusic(
+        frames_list=keyframes, output_folder=processedframes_folder
+    )
+    outputpdf = os.path.join("temp", ytinfo["id"], "output.pdf")
+    outpdf = images_to_pdf(imglist=processedframes, output_file=outputpdf)
