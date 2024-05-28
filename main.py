@@ -1,4 +1,5 @@
 import os
+import re
 
 import numpy as np
 from ffmpeg import FFmpeg
@@ -12,6 +13,7 @@ def download_youtube_video(url, output_path="video.mp4"):
         "outtmpl": output_path,
     }
     with YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url)
         ydl.download([url])
     print(f"Downloaded video to {output_path}")
 
