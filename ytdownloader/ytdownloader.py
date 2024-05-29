@@ -27,6 +27,7 @@ def download_youtube_video(url: str = None, output_path="video.mp4") -> None:
     # Download best quality
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     ydl_opts = {
+        "quiet": True,  # Suppress the output
         "format": "bestvideo",
         "outtmpl": output_path,
     }
@@ -190,6 +191,15 @@ def postprocess_image(image_path: str = None, destination_folder: str = None) ->
 
 
 def images_to_pdf(imglist: str = None, output_file: str = "out.pdf") -> str:
+    """Stitches the images into a PDF at full quality
+
+    Args:
+        imglist (str, optional): List of images to be stitched. Must be already sorted. Defaults to None.
+        output_file (str, optional): output filepath. Defaults to "out.pdf".
+
+    Returns:
+        str: output filepath
+    """
     images = [Image.open(f) for f in imglist]
 
     os.makedirs(os.path.join(os.path.dirname(output_file)), exist_ok=True)
@@ -200,9 +210,20 @@ def images_to_pdf(imglist: str = None, output_file: str = "out.pdf") -> str:
     return output_file
 
 
-if __name__ == "__main__":
-    ...
-    url = "https://www.youtube.com/watch?v=SEwqRF-_hsk"
+def get_pdf_from_yt_url(url: str = None) -> str:
+    """Gets the PDF from a URL (full process)
+
+    Args:
+        url (str, optional): _description_. Defaults to None.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        str: _description_
+    """
+    if url is None:
+        raise ValueError("URL Cannot be empty")
     ytinfo = extract_youtube_info_from_url(url=url)
     folder_cleanup(video_id=ytinfo["id"])
     downloadpath = os.path.join("temp", ytinfo["id"], "video.mp4")
@@ -217,3 +238,10 @@ if __name__ == "__main__":
     )
     outputpdf = os.path.join("temp", ytinfo["id"], "output.pdf")
     outpdf = images_to_pdf(imglist=processedframes, output_file=outputpdf)
+    return outpdf, ytinfo["title"]
+
+
+if __name__ == "__main__":
+    ...
+    url = "https://www.youtube.com/watch?v=SEwqRF-_hsk"
+    get_pdf_from_yt_url(url=url)
