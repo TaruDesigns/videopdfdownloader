@@ -37,27 +37,20 @@ function confirmDownload() {
     fetch('/api/ytdownloadsplit', {
         method: 'POST',
         body: bodyToSend,
+        headers: {
+            'Content-Type': 'application/json'
+        },        
     })
     .then(response => {
         if (response.ok) {
-            //alert('File uploaded successfully!');
-            return response.json(); // Parse the response as JSON
-            // Handle any additional actions (e.g., redirect, display success message)
+        
+            return; // TODO return file and let the user download it
         } else {
-            alert('Error uploading file. Please try again.');
+            showAlert('alert-error', "Error: Error downloading and returning the PDF");
+            return;
         }
     })
-    .then(jsonData => {
-        const jsonResultsDiv = document.getElementById('jsonResults');
-        jsonResultsDiv.innerHTML = ''; // Clear any existing content
-        // Create an unordered list to display the keys and values
-        const ul = document.createElement('div');
-        ul.classList.add('list-group')
-        createListItems(jsonData, ul); // Start the recursive function call
     
-        // Append the list to the div
-        jsonResultsDiv.appendChild(ul);
-    })         
     .catch(error => {
         console.error('Error:', error);
     });
