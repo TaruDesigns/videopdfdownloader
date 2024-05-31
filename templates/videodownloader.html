@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <link
+      id="favicon"
+      rel="icon"
+      type="image/x-icon"
+      href="static/favicon.ico"
+    />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>File Upload</title>
@@ -24,10 +30,6 @@
       </div>
     </nav>
     <div id="alertArea" class="container pt-2"></div>
-    <div
-      class="container border border-secondary pt-2 pb-2 mt-5 rounded"
-      id="jsonResults"
-    ></div>
     <div class="container border border-primary pt-2 pb-2 mt-5 rounded">
       <h1>Youtube URL</h1>
       <form id="downloadForm" method="post" enctype="multipart/form-data">
@@ -35,13 +37,14 @@
           <label for="urlInput" class="form-label">Paste the URL:</label>
           <input type="text" class="form-control" id="urlInput" name="url" />
         </div>
-        <!-- Confirm button -->
+        <!-- Confirm button , it will also turn into a spinner-->
         <button
+          id="downloadButton"
           type="button"
           class="btn btn-primary"
           onclick="confirmDownload()"
         >
-          Download!
+          Download
         </button>
       </form>
     </div>

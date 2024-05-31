@@ -22,15 +22,19 @@ function showAlert(alertType, alertText) {
 }
 
 function confirmDownload() {
-    // Validate file selection (you can add additional validation here)
-    const fileInput = document.getElementById('urlInput');
-    // TODO: Add REGEX url validation
-    if (false) {
-        showAlert('alert-warning', "Error: Please select a valid url");
+    // Get and validate URL input
+    const urlInput = document.getElementById('urlInput');
+    const url = urlInput.value.trim();
+    // Regex Validation -> Review this
+    if (!url || !url.match(/^(https?\:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+$/)) {
+        showAlert('alert-warning', "Error: Please enter a valid YouTube URL");
         return;
     }
-    // If URL is valid
+    // If URL is valid, show success
     showAlert('alert-success', "Success: Processing file");
+    // Show spinner and overlay
+    changeButtonProcessing();
+
     // Send an HTTP request to the specified endpoint (adjust the URL as needed)
     const urlToDownload = document.getElementById("urlInput").value
     const bodyToSend = JSON.stringify({ url: urlToDownload });
@@ -43,15 +47,43 @@ function confirmDownload() {
     })
     .then(response => {
         if (response.ok) {
-        
+            // Hide spinner and overlay
+            changeButtonDownload();    
             return; // TODO return file and let the user download it
         } else {
+            // Hide spinner and overlay
+            changeButtonDownload();       
             showAlert('alert-error', "Error: Error downloading and returning the PDF");
             return;
         }
     })
     
     .catch(error => {
+        // Hide spinner and overlay
+        changeButtonDownload();       
         console.error('Error:', error);
     });
 }
+
+function changeButtonProcessing() {
+    var button = document.getElementById('downloadButton');
+    var spinner = document.createElement('span');
+    spinner.classList.add('spinner-border', 'spinner-border-sm');
+    spinner.setAttribute('role', 'status');
+    spinner.setAttribute('aria-hidden', 'true');
+    spinner.id = 'spinnerSpan';
+    // Change button text to "Processing"
+    button.innerText = ' Processing';
+    // Insert the spinner before the text
+    button.prepend(spinner);
+    // Disable the button
+    button.disabled = true;
+  }
+
+  function changeButtonDownload() {
+    var button = document.getElementById('downloadButton');
+    var spinner = document.getElementById('spinnerSpan');
+    spinner.remove();
+    button.innerText = 'Download';
+    button.disabled = false;
+  }
