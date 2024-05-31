@@ -47,21 +47,29 @@ function confirmDownload() {
     })
     .then(response => {
         if (response.ok) {
-            // Hide spinner and overlay
-            changeButtonDownload();    
-            return; // TODO return file and let the user download it
+            return response.blob(); // Convert response to a blob
         } else {
-            // Hide spinner and overlay
-            changeButtonDownload();       
-            showAlert('alert-error', "Error: Error downloading and returning the PDF");
-            return;
+            throw new Error('Error downloading and returning the PDF');
         }
     })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        // Create a link element and click it to trigger download until I learn to use FileResponse properly
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'downloaded_video.pdf'; // TODO: Get filename from request?
+        document.body.appendChild(a);
+        a.click(); 
+        a.remove();
     
-    .catch(error => {
         // Hide spinner and overlay
-        changeButtonDownload();       
+        changeButtonDownload();
+    })
+    .catch(error => {
         console.error('Error:', error);
+        // Hide spinner and overlay
+        changeButtonDownload();
+        showAlert('alert-error', "Error: " + error.message);
     });
 }
 
