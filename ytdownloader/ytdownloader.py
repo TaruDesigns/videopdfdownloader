@@ -95,7 +95,11 @@ def split_video_into_key_frames(
             if f.endswith(("png"))
         ]
     )
-    return frames_list
+    if frames_list is not None and len(frames_list) > 0:
+        return frames_list
+    else:
+        # This is just a sanity check, I don't think getting to this exception is even possible
+        raise ValueError("No frames were found in the video")
 
 
 """
@@ -145,12 +149,31 @@ def remove_duplicate_images(folder_path, threshold_percentage=0.05):
 def postprocess_images_sheetmusic(
     frames_list: list[str], output_folder: str = None
 ) -> list[str]:
-    # TODO check there's results before just going all the way
+    """Runs the postprocessing pipeline for each image and returns the list (of filepaths)
+
+    Args:
+        frames_list (list[str]): list of raw frames
+        output_folder (str, optional): output folder where the files will be put into. Full path. Defaults to None.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        list[str]: _description_
+    """
+    if output_folder is None:
+        # Mostly for quick testing
+        output_folder = os.path.join(os.getcwd(), "processedframes")
     os.makedirs(output_folder, exist_ok=True)
-    postprocessed_images = sorted(
-        [postprocess_image(f, output_folder) for f in frames_list]
-    )
-    return postprocessed_images
+    images = []
+    for f in frames_list:
+        image = postprocess_image(f, output_folder)
+        if image is not None:
+            images.append(image)
+    if len(images) > 0:
+        return sorted(images)
+    else:
+        raise ValueError("No images were found after cropping")
 
     ...
 
@@ -179,18 +202,22 @@ def postprocess_image(image_path: str = None, destination_folder: str = None) ->
 
     # Find bounding box of white region
     white_pixels = np.argwhere(binary_img == 255)
-    (min_y, min_x), (max_y, max_x) = white_pixels.min(0), white_pixels.max(0)
+    if len(white_pixels) > 0:
+        (min_y, min_x), (max_y, max_x) = white_pixels.min(0), white_pixels.max(0)
+        # Crop image to bounding box
+        cropped_img = img.crop((min_x, min_y, max_x + 1, max_y + 1))
+        # Save cropped image to disk
+        out_imgname = os.path.basename(image_path).replace("key_frame", "cropped_frame")
+        out_path = os.path.join(destination_folder, out_imgname)
+        cropped_img.save(out_path)
+        return out_path
+    else:
+        # This means there were no white pixels in the image
+        # = either the threshold was too aggressive or it's just a completely black frame to begin with
+        return None
 
-    # Crop image to bounding box
-    cropped_img = img.crop((min_x, min_y, max_x + 1, max_y + 1))
-    # Save cropped image to disk
-    out_imgname = os.path.basename(image_path).replace("key_frame", "cropped_frame")
-    out_path = os.path.join(destination_folder, out_imgname)
-    cropped_img.save(out_path)
-    return out_path
 
-
-def images_to_pdf(imglist: str = None, output_file: str = "out.pdf") -> str:
+def images_to_pdf(imglist: list[str] = None, output_file: str = "out.pdf") -> str:
     """Stitches the images into a PDF at full quality
 
     Args:
@@ -200,10 +227,10 @@ def images_to_pdf(imglist: str = None, output_file: str = "out.pdf") -> str:
     Returns:
         str: output filepath
     """
+    if imglist is None or len(imglist) == 0:
+        raise ValueError("ImgList cannot be null")
     images = [Image.open(f) for f in imglist]
-
     os.makedirs(os.path.join(os.path.dirname(output_file)), exist_ok=True)
-
     images[0].save(
         output_file, "PDF", resolution=100.0, save_all=True, append_images=images[1:]
     )
@@ -225,9 +252,11 @@ def get_pdf_from_yt_url(url: str = None) -> str:
     if url is None:
         raise ValueError("URL Cannot be empty")
     ytinfo = extract_youtube_info_from_url(url=url)
-    folder_cleanup(video_id=ytinfo["id"])
+    # folder_cleanup(video_id=ytinfo["id"])
+    # TODO Only cleanup now because I'm debugging this thing, remove this later so subsequent requests don't need to redo everything
     downloadpath = os.path.join("temp", ytinfo["id"], "video.mp4")
     download_youtube_video(url=url, output_path=downloadpath)
+    # Each function raises their own exceptions if no frames are found
     rawframes_folder = os.path.join("temp", ytinfo["id"], "rawframes")
     keyframes = split_video_into_key_frames(
         video_path=downloadpath, frames_folder=rawframes_folder
@@ -236,6 +265,7 @@ def get_pdf_from_yt_url(url: str = None) -> str:
     processedframes = postprocess_images_sheetmusic(
         frames_list=keyframes, output_folder=processedframes_folder
     )
+    # Store as "output.pdf" locally but return the yt title for the user in the frontend
     outputpdf = os.path.join("temp", ytinfo["id"], "output.pdf")
     outpdf = images_to_pdf(imglist=processedframes, output_file=outputpdf)
     return outpdf, ytinfo["title"]
